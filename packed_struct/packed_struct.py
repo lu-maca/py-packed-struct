@@ -52,7 +52,7 @@ class c_float(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         if bits not in (16, 32, 64):
-            raise Exception(f"Float must be of 16, 32 or 64 bits (requested: {bits})")
+            raise Exception(f"Float must be of 16, 32 or 64 bits (requested: {bits}). See https://bitstruct.readthedocs.io/en/latest/#performance.")
         
         self.type: str = f"f{bits}"
         self.size = bits
