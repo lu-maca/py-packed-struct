@@ -3,11 +3,12 @@ import bitstruct as bstruct
 
 
 class Type:
-    """Generic type 
+    """Generic type
 
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         if bits < 0 or type(bits) != int:
             raise Exception("Number of bits shall be unsigned int")
@@ -17,7 +18,6 @@ class Type:
 
     def __repr__(self) -> str:
         return str(self.value)
-    
 
 
 class c_unsigned_int(Type):
@@ -26,6 +26,7 @@ class c_unsigned_int(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.type: str = f"u{bits}"
@@ -38,10 +39,12 @@ class c_signed_int(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.type: str = f"s{bits}"
         self.size = bits
+
 
 class c_float(Type):
     """`f` stands for float (16, 32, 64 bits), according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
@@ -49,13 +52,17 @@ class c_float(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         if bits not in (16, 32, 64):
-            raise Exception(f"Float must be of 16, 32 or 64 bits (requested: {bits}). See https://bitstruct.readthedocs.io/en/latest/#performance.")
-        
+            raise Exception(
+                f"Float must be of 16, 32 or 64 bits (requested: {bits}). See https://bitstruct.readthedocs.io/en/latest/#performance."
+            )
+
         self.type: str = f"f{bits}"
         self.size = bits
+
 
 class c_bool(Type):
     """`b` stands for boolean, according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
@@ -63,25 +70,31 @@ class c_bool(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.type: str = f"b{bits}"
         self.size = bits
+
 
 class c_char(Type):
     """`c` stands for char in C language, `t` according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
 
     Argument:
         `bits`: number of bits (`int`)
-    
+
     Nota bene: a char is always contained in at least 8 bits.
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         if bits % 8 != 0:
-            raise UserWarning("char must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)")
+            raise UserWarning(
+                "char must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)"
+            )
         self.type: str = f"t{bits}"
         self.size = bits
+
 
 class c_raw_bytes(Type):
     """`r` stands for raw, for raw bytes, according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
@@ -89,10 +102,12 @@ class c_raw_bytes(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.type: str = f"r{bits}"
         self.size = bits
+
 
 class c_padding(Type):
     """`p` stands for padding, according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
@@ -100,6 +115,7 @@ class c_padding(Type):
     Argument:
         `bits`: number of bits (`int`)
     """
+
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.type: str = f"p{bits}"
@@ -108,7 +124,7 @@ class c_padding(Type):
 
 class Struct:
     """Definition of a C-like packed struct
-    
+
     Argument:
         `data_dict`: dictionary of data to be included in the packed struct (key: name, item: data type)
 
@@ -122,7 +138,7 @@ class Struct:
         # person in C would be:
         # struct{
         #    char[10] name;
-        #    uint8_t age;       
+        #    uint8_t age;
         #    float weight;
         # } person;
         ```
@@ -131,8 +147,8 @@ class Struct:
         ```python
         person = Struct(
             {
-                "name": c_char(10*8), 
-                "age": c_unsigned_int(8), 
+                "name": c_char(10*8),
+                "age": c_unsigned_int(8),
                 "weight": c_float(32),
                 "dresses": Struct(
                     {
@@ -148,14 +164,17 @@ class Struct:
         print(person.pack())
         ```
     """
+
     def __init__(self, data_dict: dict) -> None:
         if not data_dict:
             raise Exception("Empty structure cannot be created")
-        
+
         # check on types of data
         for key, item in data_dict.items():
             if not (isinstance(item, Type) or isinstance(item, Struct)):
-                raise Exception(f"Data {key} shall be of type Type or Struct. Current type: {type(item)}")
+                raise Exception(
+                    f"Data {key} shall be of type Type or Struct. Current type: {type(item)}"
+                )
         self._data = data_dict
 
     def __getitem__(self, data):
@@ -166,15 +185,15 @@ class Struct:
             return self._data[data]
         except:
             raise AttributeError
-        
+
     def __repr__(self) -> str:
         representation = {}
         for key, item in self._data.items():
             representation[key] = item
         return str(representation)
-        
-    
+
     """Properties"""
+
     @property
     def size(self) -> int:
         """Return the size of the struct"""
@@ -182,7 +201,7 @@ class Struct:
         for _, item in self._data.items():
             bitsize += item.size
         return bitsize
-    
+
     @property
     def type(self) -> str:
         """Return the composed type of a struct, i.e. data types packed together."""
@@ -191,7 +210,7 @@ class Struct:
     @property
     def value(self) -> list:
         """Return the list of values of all the data"""
-        # this can be managed in a more pythonic way maybe with list comprehension, 
+        # this can be managed in a more pythonic way maybe with list comprehension,
         # but a comprehension creates a list of lists when multiple Structs are nested
         values = []
         for _, item in self._data.items():
@@ -202,8 +221,8 @@ class Struct:
                 values.append(val)
         return values
 
-
     """Public methods"""
+
     def get_data(self) -> dict:
         """Return a dict containing all data in the struct."""
         return self._data
@@ -229,10 +248,10 @@ class Struct:
         args = self.value
 
         return bstruct.pack(fmt, *args)
-    
+
     def set_data(self, **kwargs):
         """Set data in the struct.
-        
+
         Examples of usage:
             ```python
             person = Struct({"name": c_char(10*8), "age": c_unsigned_int(8), "weight": c_float(32)})
@@ -241,10 +260,12 @@ class Struct:
         """
         if not kwargs:
             raise Exception("Give me some data: see examples")
-        
+
         for key, item in kwargs.items():
             if not key in self._data.keys():
-                raise AttributeError(f"Data {key} not found! Current data are: {self._data.keys()}")
+                raise AttributeError(
+                    f"Data {key} not found! Current data are: {self._data.keys()}"
+                )
             # if the key exists, we can set the value
             self._data[key].value = item
 
@@ -262,15 +283,15 @@ class Struct:
             else:
                 item.value = unpacked[idx]
                 idx += 1
-        
+
         return self._data
 
 
 # if __name__ == "__main__":
 #     person = Struct(
 #         {
-#             "name": c_char(10*8), 
-#             "age": c_unsigned_int(8), 
+#             "name": c_char(10*8),
+#             "age": c_unsigned_int(8),
 #             "weight": c_float(32),
 #             "dresses": Struct(
 #                 {
@@ -290,8 +311,8 @@ class Struct:
 
 #     person2 = Struct(
 #         {
-#             "name": c_char(10*8), 
-#             "age": c_unsigned_int(8), 
+#             "name": c_char(10*8),
+#             "age": c_unsigned_int(8),
 #             "weight": c_float(32),
 #             "dresses": Struct(
 #                 {

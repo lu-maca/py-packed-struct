@@ -5,13 +5,13 @@ import os
 import codecs
 from setuptools import setup, find_packages
 
+
 def read(fname):
     file_path = os.path.join(os.path.dirname(__file__), fname)
     return codecs.open(file_path, encoding="utf-8").read()
 
-required_packages = [
-    "bitstruct"
-]
+
+required_packages = ["bitstruct"]
 
 setup(
     name="py-packed-struct",
@@ -27,5 +27,5 @@ setup(
     packages=find_packages(),
     setup_requires=["wheel"] + required_packages,
     install_requires=required_packages,
-    include_package_data=True
+    include_package_data=True,
 )
