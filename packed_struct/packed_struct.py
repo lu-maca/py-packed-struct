@@ -167,6 +167,12 @@ class Struct:
         except:
             raise AttributeError
         
+    def __repr__(self) -> str:
+        representation = {}
+        for key, item in self._data.items():
+            representation[key] = item
+        return str(representation)
+        
     
     """Properties"""
     @property
@@ -179,7 +185,7 @@ class Struct:
     
     @property
     def type(self) -> str:
-        """Return the composed type of a struct, i.e. data types packed together"""
+        """Return the composed type of a struct, i.e. data types packed together."""
         return "".join([item.type for _, item in self._data.items()])
 
     @property
@@ -195,6 +201,7 @@ class Struct:
             else:
                 values.append(val)
         return values
+
 
     """Public methods"""
     def get_data(self) -> dict:
@@ -241,4 +248,58 @@ class Struct:
             # if the key exists, we can set the value
             self._data[key].value = item
 
+    def unpack(self, byte_string: bytes) -> dict:
+        """Unpack `byte_string: bytes` according to the format of the struct.
+        Return a dict containing data."""
+        unpacked = bstruct.unpack(self.type, byte_string)
+        idx = 0
+
+        for _, item in self._data.items():
+            if isinstance(item, Struct):
+                for _, it in item._data.items():
+                    it.value = unpacked[idx]
+                    idx += 1
+            else:
+                item.value = unpacked[idx]
+                idx += 1
         
+        return self._data
+
+
+# if __name__ == "__main__":
+#     person = Struct(
+#         {
+#             "name": c_char(10*8), 
+#             "age": c_unsigned_int(8), 
+#             "weight": c_float(32),
+#             "dresses": Struct(
+#                 {
+#                     "tshirt": c_char(10*8),
+#                     "shorts": c_char(10*8)
+#                 }
+#             )
+#         }
+#     )
+#     person.set_data(name="Mario", age=25, weight=75.8)
+#     person.dresses.set_data(tshirt="nike", shorts="adidas")
+#     print(person)
+
+#     p = person.pack()
+
+#     del person
+
+#     person2 = Struct(
+#         {
+#             "name": c_char(10*8), 
+#             "age": c_unsigned_int(8), 
+#             "weight": c_float(32),
+#             "dresses": Struct(
+#                 {
+#                     "tshirt": c_char(10*8),
+#                     "shorts": c_char(10*8)
+#                 }
+#             )
+#         }
+#     )
+
+#     print(person2.unpack(p))
