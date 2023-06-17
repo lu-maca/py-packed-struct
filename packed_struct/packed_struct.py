@@ -15,6 +15,9 @@ class Type:
         self.value = None
         self.size = None
 
+    def __repr__(self) -> str:
+        return str(self.value)
+    
 
 
 class c_unsigned_int(Type):
@@ -158,6 +161,12 @@ class Struct:
     def __getitem__(self, data):
         return self._data[data]
 
+    def __getattr__(self, data):
+        try:
+            return self._data[data]
+        except:
+            raise AttributeError
+        
     
     """Properties"""
     @property
@@ -189,6 +198,7 @@ class Struct:
 
     """Public methods"""
     def get_data(self) -> dict:
+        """Return a dict containing all data in the struct."""
         return self._data
 
     def pack(self, byte_endianness: str = "big") -> bytes:
@@ -199,7 +209,10 @@ class Struct:
         """
         if not byte_endianness in ("big", "small"):
             raise Exception("Byte endianness shall be 'small' or 'big'")
+        if not all(self.value):
+            raise Exception("You have to initialize all data.")
 
+        # set byte endianness
         if byte_endianness == "small":
             endianness = "<"
         else:
@@ -207,8 +220,6 @@ class Struct:
 
         fmt = f"{endianness}{self.type}"
         args = self.value
-
-        print(fmt, args)
 
         return bstruct.pack(fmt, *args)
     
@@ -226,12 +237,8 @@ class Struct:
         
         for key, item in kwargs.items():
             if not key in self._data.keys():
-                raise Exception(f"Data {key} not found! Current data are: {self._data.keys()}")
+                raise AttributeError(f"Data {key} not found! Current data are: {self._data.keys()}")
             # if the key exists, we can set the value
             self._data[key].value = item
 
         
-
-
-
-
