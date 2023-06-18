@@ -233,9 +233,10 @@ class Struct:
         Argument:
             `byte_endianness`: shall be "big" or "small" (default: "big")
         """
+        check_array = [True if x is not None else False for x in self.value]
         if not byte_endianness in ("big", "small"):
             raise Exception("Byte endianness shall be 'small' or 'big'")
-        if not all(self.value):
+        if not all(check_array):
             raise Exception("You have to initialize all data.")
 
         # set byte endianness
@@ -287,40 +288,45 @@ class Struct:
         return self._data
 
 
-# if __name__ == "__main__":
-#     person = Struct(
-#         {
-#             "name": c_char(10*8),
-#             "age": c_unsigned_int(8),
-#             "weight": c_float(32),
-#             "dresses": Struct(
-#                 {
-#                     "tshirt": c_char(10*8),
-#                     "shorts": c_char(10*8)
-#                 }
-#             )
-#         }
-#     )
-#     person.set_data(name="Mario", age=25, weight=75.8)
-#     person.dresses.set_data(tshirt="nike", shorts="adidas")
-#     print(person)
+if __name__ == "__main__":
+    person = Struct(
+        {
+            "name": c_char(10*8),
+            "age": c_unsigned_int(8),
+            "weight": c_float(32),
+            # "dresses": Struct(
+            #     {
+            #         "tshirt": c_char(10*8),
+            #         "shorts": c_char(10*8)
+            #     }
+            # )
+        }
+    )
+    person.set_data(name="Luca", age=28, weight=100.0)
+    # person.dresses.set_data(tshirt="nike", shorts="adidas")
+    print(person)
 
-#     p = person.pack()
+    payload = person.pack("big")
+    print(payload)
 
-#     del person
+    import paho.mqtt.publish as publish
 
-#     person2 = Struct(
-#         {
-#             "name": c_char(10*8),
-#             "age": c_unsigned_int(8),
-#             "weight": c_float(32),
-#             "dresses": Struct(
-#                 {
-#                     "tshirt": c_char(10*8),
-#                     "shorts": c_char(10*8)
-#                 }
-#             )
-#         }
-#     )
+    topic = u"example/temperature"
+    publish.single(topic, payload, hostname="localhost") 
+    # del person
 
-#     print(person2.unpack(p))
+    # person2 = Struct(
+    #     {
+    #         "name": c_char(10*8),
+    #         "age": c_unsigned_int(8),
+    #         "weight": c_float(32),
+    #         # "dresses": Struct(
+    #         #     {
+    #         #         "tshirt": c_char(10*8),
+    #         #         "shorts": c_char(10*8)
+    #         #     }
+    #         # )
+    #     }
+    # )
+
+    # print(person2.unpack(p))
