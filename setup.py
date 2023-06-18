@@ -23,7 +23,7 @@ setup(
     url="https://github.com/lu-maca/py-packed-struct",
     description="An implementation of C-like packed structures in Python",
     long_description=read("README.md"),
-    python_requires=">=3.4",
+    python_requires=">=3.5",
     packages=find_packages(),
     setup_requires=["wheel"] + required_packages,
     install_requires=required_packages,
