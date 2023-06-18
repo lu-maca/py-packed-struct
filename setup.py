@@ -20,7 +20,7 @@ setup(
     author_email="luca.macavero@gmail.com",
     maintainer="Luca Macavero",
     maintainer_email="luca.macavero@gmail.com",
-    url="",
+    url="https://github.com/lu-maca/py-packed-struct",
     description="An implementation of C-like packed structures in Python",
     long_description=read("README.md"),
     python_requires=">=3.4",
