@@ -120,6 +120,7 @@ class c_padding(Type):
         super().__init__(bits)
         self.type: str = f"p{bits}"
         self.size = bits
+        self.value = 0
 
 
 class Struct:
@@ -245,7 +246,7 @@ class Struct:
         else:
             endianness = ">"
 
-        fmt = f"{endianness}{self.type}"
+        fmt = f"{self.type}{endianness}"
         args = self.value
 
         return bstruct.pack(fmt, *args)
@@ -293,7 +294,7 @@ if __name__ == "__main__":
         {
             "name": c_char(10*8),
             "age": c_unsigned_int(8),
-            "weight": c_float(32),
+            "weight": c_unsigned_int(16),
             # "dresses": Struct(
             #     {
             #         "tshirt": c_char(10*8),
@@ -302,12 +303,14 @@ if __name__ == "__main__":
             # )
         }
     )
-    person.set_data(name="Luca", age=28, weight=100.0)
+    person.set_data(name="Luca Maca", age=29, weight=100)
     # person.dresses.set_data(tshirt="nike", shorts="adidas")
     print(person)
 
-    payload = person.pack("big")
+    payload = person.pack("small")
+    print(person.type)
     print(payload)
+    print(person.size/8)
 
     import paho.mqtt.publish as publish
 
