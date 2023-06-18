@@ -44,9 +44,9 @@ typedef struct __attribute__((packed)) {
 } clothes_t;
 
 typedef struct __attribute__((packed)) {
-    char name[10];
-    uint8_t age;
-    float weight;
+	char name[10];
+	uint8_t age;
+	float weight;
 	clothes_t clothes;
 } person;
 ```
