@@ -1,5 +1,31 @@
 # py-packed-struct
-An implementation of C-like packed structures in Python based on the [`bitstruct`](https://bitstruct.readthedocs.io/en/latest/index.html) package 
+An implementation of C-like packed structures in Python based on the [`bitstruct`](https://bitstruct.readthedocs.io/en/latest/index.html) package
+
+**py-packed-struct** allows to define C-like structures in an elegant way and to convert them into `bytes` objects without having to specify the format as required by `struct`:
+```python
+# with struct
+>>> from struct import *
+>>> one, two, three = 1, 2, 3
+>>> pack(">bhl", one, two, three)
+b'\x01\x00\x02\x00\x00\x00\x03'
+
+# with py-packed-struct
+>>> from packed_struct import *
+>>> s = Struct({"one": c_signed_int(8), "two": c_signed_int(16), "three": c_signed_int(32) })
+>>> s.set_data(one = 1, two = 2, three = 3)
+>>> s.pack(byte_endianness="big")
+b'\x01\x00\x02\x00\x00\x00\x03'
+```
+Who needs to remember struct format strings? :)
+
+In addition, **py-packed-struct** allows to work with bit-fields and nested structures (see [Example](Example)).
+
+Supported features
+----
+- C-like struct
+- bit-fields handling
+- byte endianess
+- (TODO) bit endianness
 
 
 Example
