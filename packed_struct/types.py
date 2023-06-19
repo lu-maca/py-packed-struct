@@ -118,7 +118,7 @@ class c_padding(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"p{bits}"
+        self.type: str = f"u{bits}"
         self.size = bits
         self.value = 0
 
