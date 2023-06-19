@@ -20,6 +20,10 @@ Who needs to remember struct format strings? :)
 
 In addition, **py-packed-struct** allows to work with bit-fields and nested structures (see [examples](https://github.com/lu-maca/py-packed-struct/tree/main/examples)).
 
+Installation
+----
+TODO
+
 Supported features
 ----
 - C-like struct
