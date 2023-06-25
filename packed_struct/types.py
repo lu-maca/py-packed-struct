@@ -297,23 +297,3 @@ class Struct:
                 idx += 1
 
         return self._data
-
-
-if __name__ == "__main__":
-    person = Struct(
-        {
-            "name": c_char(10*8),
-            "age": c_unsigned_int(8),
-            "weight": c_float(32),
-            "dresses": Struct(
-                {
-                    "tshirt": c_char(10*8),
-                    "shorts": c_char(10*8)
-                }
-            )
-        }
-    )
-    person["dresses"].set_data(tshirt="nike", shorts="adidas")
-    person.set_data(name="Maria", age=26, weight=76.8)
-    print(person.size)
-    print(person.pack())
