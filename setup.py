@@ -1,18 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import codecs
+from pathlib import Path
 from setuptools import setup, find_packages
 
-
-def read(fname):
-    file_path = os.path.join(os.path.dirname(__file__), fname)
-    return codecs.open(file_path, encoding="utf-8").read()
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 
 required_packages = ["bitstruct"]
-
 setup(
     name="py-packed-struct",
     version=0.1,
@@ -22,7 +18,8 @@ setup(
     maintainer_email="luca.macavero@gmail.com",
     url="https://github.com/lu-maca/py-packed-struct",
     description="An implementation of C-like packed structures in Python",
-    long_description=read("README.md"),
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     python_requires=">=3.5",
     packages=find_packages(),
     setup_requires=["wheel"] + required_packages,
