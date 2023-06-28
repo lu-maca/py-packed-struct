@@ -2,6 +2,12 @@
 import bitstruct as bstruct
 
 
+BYTE_ENDIANNESS = {
+    "=": "",
+    "big": ">",
+    "small": "<",
+}
+
 class Type:
     """Generic type
 
@@ -236,25 +242,22 @@ class Struct:
         """Return a dict containing all data in the struct."""
         return self._data
 
-    def pack(self, byte_endianness: str = "big") -> bytes:
+    def pack(self, byte_endianness: str = "=") -> bytes:
         """Return a `bytes` object containing the packed string with the requested `byte_endianness`
         according to specified format
 
         Argument:
-            `byte_endianness`: shall be "big" or "small" (default: "big")
+            `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
         """
         
         check_array = [True if x is not None else False for x in self.value]
-        if not byte_endianness in ("big", "small"):
-            raise Exception("Byte endianness shall be 'small' or 'big'")
+        if not byte_endianness in BYTE_ENDIANNESS.keys():
+            raise Exception("Byte endianness shall be 'small', 'big' or '='")
         if not all(check_array):
             raise Exception("You have to initialize all data.")
 
         # set byte endianness
-        if byte_endianness == "small":
-            B_endianness = "<"
-        else:
-            B_endianness = ">"
+        B_endianness = BYTE_ENDIANNESS[byte_endianness]
 
         fmt = f"{self.fmt}{B_endianness}"
         args = self.value
