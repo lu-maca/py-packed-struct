@@ -2,6 +2,13 @@
 import bitstruct as bstruct
 
 
+BYTE_ENDIANNESS = {
+    "=": "",
+    "big": ">",
+    "small": "<",
+}
+
+
 class Type:
     """Generic type
 
@@ -10,9 +17,9 @@ class Type:
     """
 
     def __init__(self, bits: int) -> None:
-        if bits < 0 or type(bits) != int:
-            raise Exception("Number of bits shall be unsigned int")
-        self.type = None
+        if bits <= 0 or type(bits) != int:
+            raise Exception("Number of bits shall be a positive integer")
+        self.fmt = None
         self.value = None
         self.size = None
 
@@ -29,7 +36,7 @@ class c_unsigned_int(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"u{bits}"
+        self.fmt: str = f"u{bits}"
         self.size = bits
 
 
@@ -42,7 +49,7 @@ class c_signed_int(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"s{bits}"
+        self.fmt: str = f"s{bits}"
         self.size = bits
 
 
@@ -60,7 +67,7 @@ class c_float(Type):
                 f"Float must be of 16, 32 or 64 bits (requested: {bits}). See https://bitstruct.readthedocs.io/en/latest/#performance."
             )
 
-        self.type: str = f"f{bits}"
+        self.fmt: str = f"f{bits}"
         self.size = bits
 
 
@@ -73,7 +80,7 @@ class c_bool(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"b{bits}"
+        self.fmt: str = f"b{bits}"
         self.size = bits
 
 
@@ -92,7 +99,7 @@ class c_char(Type):
             raise UserWarning(
                 "char must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)"
             )
-        self.type: str = f"t{bits}"
+        self.fmt: str = f"t{bits}"
         self.size = bits
 
 
@@ -105,7 +112,7 @@ class c_raw_bytes(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"r{bits}"
+        self.fmt: str = f"r{bits}"
         self.size = bits
 
 
@@ -118,7 +125,7 @@ class c_padding(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
-        self.type: str = f"u{bits}"
+        self.fmt: str = f"u{bits}"
         self.size = bits
         self.value = 0
 
@@ -176,7 +183,10 @@ class Struct:
                 raise Exception(
                     f"Data {key} shall be of type Type or Struct. Current type: {type(item)}"
                 )
+
+        # if all checks are passed, initialize attributes
         self._data = data_dict
+        self._fmt = None
 
     def __getitem__(self, data):
         return self._data[data]
@@ -204,19 +214,24 @@ class Struct:
         return bitsize
 
     @property
-    def type(self) -> str:
-        """Return the composed type of a struct, i.e. data types packed together."""
-        return "".join([item.type for _, item in self._data.items()])
+    def fmt(self) -> str:
+        """Return the composed format of a struct, i.e. data types packed together.
+        If already computed, returns directly it (to save time), if not compute it.
+        """
+        if not self._fmt:
+            self._fmt = "".join([item.fmt for _, item in self._data.items()])
+
+        return self._fmt
 
     @property
     def value(self) -> list:
-        """Return the list of values of all the data"""
+        """Return the list of values of all data"""
         # this can be managed in a more pythonic way maybe with list comprehension,
         # but a comprehension creates a list of lists when multiple Structs are nested
         values = []
         for _, item in self._data.items():
             val = item.value
-            if type(item.value) is list:
+            if type(val) is list:
                 values += val
             else:
                 values.append(val)
@@ -228,25 +243,24 @@ class Struct:
         """Return a dict containing all data in the struct."""
         return self._data
 
-    def pack(self, byte_endianness: str = "big") -> bytes:
-        """Return a `bytes` object containing the packed string with the requested `bit_endianness`
+    def pack(self, byte_endianness: str = "=") -> bytes:
+        """Return a `bytes` object containing the packed string with the requested `byte_endianness`
+        according to specified format
 
         Argument:
-            `byte_endianness`: shall be "big" or "small" (default: "big")
+            `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
         """
+
         check_array = [True if x is not None else False for x in self.value]
-        if not byte_endianness in ("big", "small"):
-            raise Exception("Byte endianness shall be 'small' or 'big'")
+        if not byte_endianness in BYTE_ENDIANNESS.keys():
+            raise Exception("Byte endianness shall be 'small', 'big' or '='")
         if not all(check_array):
             raise Exception("You have to initialize all data.")
 
         # set byte endianness
-        if byte_endianness == "small":
-            endianness = "<"
-        else:
-            endianness = ">"
+        B_endianness = BYTE_ENDIANNESS[byte_endianness]
 
-        fmt = f"{self.type}{endianness}"
+        fmt = f"{self.fmt}{B_endianness}"
         args = self.value
 
         return bstruct.pack(fmt, *args)
@@ -274,7 +288,7 @@ class Struct:
     def unpack(self, byte_string: bytes) -> dict:
         """Unpack `byte_string: bytes` according to the format of the struct.
         Return a dict containing data."""
-        unpacked = bstruct.unpack(self.type, byte_string)
+        unpacked = bstruct.unpack(self.fmt, byte_string)
         idx = 0
 
         for _, item in self._data.items():
