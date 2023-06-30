@@ -42,4 +42,4 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --upgrade setuptools tox-gh-actions wheel
     - name: Run tests
-      run: tox run-parallel
+      run: tox -vv
