@@ -17,7 +17,7 @@ class Type:
     """
 
     def __init__(self, bits: int) -> None:
-        if bits < 0 or type(bits) != int:
+        if bits <= 0 or type(bits) != int:
             raise Exception("Number of bits shall be a positive integer")
         self.fmt = None
         self.value = None
