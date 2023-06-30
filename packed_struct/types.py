@@ -8,6 +8,7 @@ BYTE_ENDIANNESS = {
     "small": "<",
 }
 
+
 class Type:
     """Generic type
 
@@ -175,14 +176,14 @@ class Struct:
     def __init__(self, data_dict: dict) -> None:
         if not data_dict:
             raise Exception("Empty structure cannot be created")
-        
+
         # check on types of data
         for key, item in data_dict.items():
             if not (isinstance(item, Type) or isinstance(item, Struct)):
                 raise Exception(
                     f"Data {key} shall be of type Type or Struct. Current type: {type(item)}"
                 )
-            
+
         # if all checks are passed, initialize attributes
         self._data = data_dict
         self._fmt = None
@@ -226,7 +227,7 @@ class Struct:
     def value(self) -> list:
         """Return the list of values of all data"""
         # this can be managed in a more pythonic way maybe with list comprehension,
-        # but a comprehension creates a list of lists when multiple Structs are nested      
+        # but a comprehension creates a list of lists when multiple Structs are nested
         values = []
         for _, item in self._data.items():
             val = item.value
@@ -249,7 +250,7 @@ class Struct:
         Argument:
             `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
         """
-        
+
         check_array = [True if x is not None else False for x in self.value]
         if not byte_endianness in BYTE_ENDIANNESS.keys():
             raise Exception("Byte endianness shall be 'small', 'big' or '='")
