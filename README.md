@@ -22,7 +22,9 @@ In addition, **py-packed-struct** allows to work with bit-fields and nested stru
 
 Installation
 ----
-TODO
+```bash
+pip install py-packed-struct
+```
 
 Supported features
 ----
