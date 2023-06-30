@@ -41,6 +41,13 @@ class TypesTest:
             else:
                 non_blocking_assert(str(e) == "Number of bits shall be a positive integer", f"wrong exception (expected: Number of bits shall be a positive integer, current {str(e)})")
 
+    
+    @test
+    def test_signed_int():
+        pass
+
+
+
 
 ################
 # 
