@@ -3,9 +3,7 @@ from test_utils import *
 from packed_struct import *
 
 class TypesTest:
-    def __init__(self) -> None:
-        pass
-
+    
     @test
     def test_unsigned_int():
         bits = 3
@@ -35,5 +33,4 @@ class TypesTest:
 #
 ################
 if __name__ == "__main__":
-    ttest = TypesTest()
     run()
