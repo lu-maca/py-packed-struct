@@ -96,7 +96,7 @@ class c_char(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         if bits % 8 != 0:
-            raise UserWarning(
+            raise Exception(
                 "char must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)"
             )
         self.fmt: str = f"t{bits}"
@@ -112,6 +112,10 @@ class c_raw_bytes(Type):
 
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
+        if bits % 8 != 0:
+            raise Exception(
+                "raw_bytes must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)"
+            )
         self.fmt: str = f"r{bits}"
         self.size = bits
 
