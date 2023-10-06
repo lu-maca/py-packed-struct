@@ -13,8 +13,12 @@ b'\x01\x00\x02\x00\x00\x00\x03'
 >>> from packed_struct import *
 >>> s = Struct({"one": c_signed_int(8), "two": c_signed_int(16), "three": c_signed_int(32) })
 >>> s.set_data(one = 1, two = 2, three = 3)
->>> s.pack(byte_endianness="big")
+>>> serialized = s.pack(byte_endianness="big")
+>>> print(serialized)
 b'\x01\x00\x02\x00\x00\x00\x03'
+>>>
+>>> s.unpack(serialized)
+>>> {'one': 1, 'two': 2, 'three': 3}
 ```
 Who needs to remember struct format strings? :)
 
