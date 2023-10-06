@@ -11,7 +11,7 @@ long_description = (this_directory / "README.md").read_text()
 required_packages = ["bitstruct"]
 setup(
     name="py-packed-struct",
-    version=0.2,
+    version=0.3,
     author="Luca Macavero",
     author_email="luca.macavero@gmail.com",
     maintainer="Luca Macavero",
