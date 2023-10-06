@@ -288,30 +288,32 @@ class Struct:
     def unpack(self, byte_string: bytes, byte_endianness: str = "=") -> dict:
         """Unpack `byte_string: bytes` according to the format of the struct.
         Return a dict containing data.
-
+        
         Arguments:
             * `byte_string`: the byte string you want to unpack
-
+            
             * `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
         """
         if not byte_endianness in BYTE_ENDIANNESS.keys():
             raise Exception("Byte endianness shall be 'small', 'big' or '='")
-
+        
         # set byte endianness
         B_endianness = BYTE_ENDIANNESS[byte_endianness]
         # set unpack format
         fmt = f"{self.fmt}{B_endianness}"
 
         unpacked = bstruct.unpack(fmt, byte_string)
-        idx = 0
+        i = 0
 
-        for _, item in self._data.items():
-            if isinstance(item, Struct):
-                for _, it in item._data.items():
-                    it.value = unpacked[idx]
+        def recursive_set(dict_item, idx: int):
+            for _, item in dict_item.items():
+                if isinstance(item, Struct):
+                    idx = recursive_set(item._data, idx)
+                else:
+                    item.value = unpacked[idx]
                     idx += 1
-            else:
-                item.value = unpacked[idx]
-                idx += 1
+            return idx
+
+        recursive_set(self._data, i)
 
         return self._data
