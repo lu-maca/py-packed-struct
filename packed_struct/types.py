@@ -5,7 +5,7 @@ import bitstruct as bstruct
 BYTE_ENDIANNESS = {
     "=": "",
     "big": ">",
-    "small": "<",
+    "little": "<",
 }
 
 
@@ -248,12 +248,12 @@ class Struct:
         according to specified format
 
         Argument:
-            `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
+            `byte_endianness`: shall be "big", "little" or "=" (default: "=", i.e. native)
         """
 
         check_array = [True if x is not None else False for x in self.value]
         if not byte_endianness in BYTE_ENDIANNESS.keys():
-            raise Exception("Byte endianness shall be 'small', 'big' or '='")
+            raise Exception("Byte endianness shall be 'little', 'big' or '='")
         if not all(check_array):
             raise Exception("You have to initialize all data.")
 
@@ -292,10 +292,10 @@ class Struct:
         Arguments:
             * `byte_string`: the byte string you want to unpack
 
-            * `byte_endianness`: shall be "big", "small" or "=" (default: "=", i.e. native)
+            * `byte_endianness`: shall be "big", "little" or "=" (default: "=", i.e. native)
         """
         if not byte_endianness in BYTE_ENDIANNESS.keys():
-            raise Exception("Byte endianness shall be 'small', 'big' or '='")
+            raise Exception("Byte endianness shall be 'little', 'big' or '='")
 
         # set byte endianness
         B_endianness = BYTE_ENDIANNESS[byte_endianness]
