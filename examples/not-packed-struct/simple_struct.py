@@ -19,7 +19,7 @@ s.set_data(
 )
 
 # # pack them 
-bytes_str = s.pack("small")
+bytes_str = s.pack("little")
 
 print(bytes_str)
 

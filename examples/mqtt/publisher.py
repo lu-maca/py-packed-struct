@@ -31,7 +31,7 @@ person.dresses.shoes.set_data(number=42, brand="bar")
 print(person)
 
 # pack into a bytes string
-payload = person.pack(byte_endianness="small")
+payload = person.pack(byte_endianness="little")
 
 # publish
 topic = u"example/mqtt"
