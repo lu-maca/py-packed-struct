@@ -285,14 +285,26 @@ class Struct:
             # if the key exists, we can set the value
             self._data[key].value = item
 
-    def unpack(self, byte_string: bytes, byte_endianness: str = "=") -> dict:
+    def unpack(
+        self,
+        byte_string: bytes,
+        byte_endianness: str = "=",
+        text_encoding: str = "utf-8",
+        text_errors: str = "strict",
+    ) -> dict:
         """Unpack `byte_string: bytes` according to the format of the struct.
+        Text fields are decoded with given encoding `text_encoding` and error
+        handling as given by `text_errors` (both passed to `bytes.decode()`).
         Return a dict containing data.
 
         Arguments:
             * `byte_string`: the byte string you want to unpack
 
             * `byte_endianness`: shall be "big", "little" or "=" (default: "=", i.e. native)
+
+            * `text_encoding`: passed to `bytes.decode()`
+
+            * `text_errors`: passed to `bytes.decode()`
         """
         if not byte_endianness in BYTE_ENDIANNESS.keys():
             raise Exception("Byte endianness shall be 'little', 'big' or '='")
@@ -302,7 +314,9 @@ class Struct:
         # set unpack format
         fmt = f"{self.fmt}{B_endianness}"
 
-        unpacked = bstruct.unpack(fmt, byte_string)
+        unpacked = bstruct.unpack(
+            fmt, byte_string, text_encoding=text_encoding, text_errors=text_errors
+        )
         i = 0
 
         def recursive_set(dict_item, idx: int):
