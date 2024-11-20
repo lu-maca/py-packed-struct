@@ -1,7 +1,6 @@
 """This module wraps the `bitstruct` package to implement a C like packed struct (https://bitstruct.readthedocs.io/en/latest/index.html)"""
 
 import bitstruct as bstruct
-import pdb
 
 BYTE_ENDIANNESS = {
     "=": "",
