@@ -1,6 +1,7 @@
 """This module wraps the `bitstruct` package to implement a C like packed struct (https://bitstruct.readthedocs.io/en/latest/index.html)"""
-import bitstruct as bstruct
 
+import bitstruct as bstruct
+import pdb
 
 BYTE_ENDIANNESS = {
     "=": "",
@@ -21,10 +22,13 @@ class Type:
             raise Exception("Number of bits shall be a positive integer")
         self.fmt = None
         self.value = None
-        self.size = None
+        self.size = bits
 
     def __repr__(self) -> str:
         return str(self.value)
+
+    def set_value(self, value):
+        self.value = value
 
 
 class c_unsigned_int(Type):
@@ -37,7 +41,6 @@ class c_unsigned_int(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.fmt: str = f"u{bits}"
-        self.size = bits
 
 
 class c_signed_int(Type):
@@ -50,7 +53,6 @@ class c_signed_int(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.fmt: str = f"s{bits}"
-        self.size = bits
 
 
 class c_float(Type):
@@ -68,7 +70,6 @@ class c_float(Type):
             )
 
         self.fmt: str = f"f{bits}"
-        self.size = bits
 
 
 class c_bool(Type):
@@ -81,7 +82,6 @@ class c_bool(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.fmt: str = f"b{bits}"
-        self.size = bits
 
 
 class c_char(Type):
@@ -100,7 +100,6 @@ class c_char(Type):
                 "char must be contained in multiples of 8 bits (see https://bitstruct.readthedocs.io/en/latest/#performance)"
             )
         self.fmt: str = f"t{bits}"
-        self.size = bits
 
 
 class c_raw_bytes(Type):
@@ -113,7 +112,6 @@ class c_raw_bytes(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.fmt: str = f"r{bits}"
-        self.size = bits
 
 
 class c_padding(Type):
@@ -126,8 +124,43 @@ class c_padding(Type):
     def __init__(self, bits: int) -> None:
         super().__init__(bits)
         self.fmt: str = f"u{bits}"
-        self.size = bits
         self.value = 0
+
+
+class c_array(Type):
+    """
+    Type size shall be specified in bits and shall be a multiple of 8
+    """
+
+    def __init__(self, type_name: Type, type_size_bits: int, array_size: int) -> None:
+        if array_size < 0:
+            raise UserWarning("array_size must be positive")
+        if type_size_bits % 8 != 0:
+            raise UserWarning("type_size_bits must be a multiples of 8 bits")
+        super().__init__(type_size_bits * array_size)
+        self._array_size = array_size
+        self.value = []
+        for _ in range(0, array_size):
+            self.value.append(type_name(type_size_bits))
+        self.fmt = ""
+        for value in self.value:
+            self.fmt += value.fmt
+
+    def __iter__(self):
+        yield from self.value
+
+    def __getitem__(self, idx):
+        return self.value[idx]
+
+    def set_value(self, values: list | str):
+        if isinstance(values, str) and len(values) < len(self.value):
+            values += "\0" * (len(self.value) - len(values))
+        if len(values) != len(self.value):
+            raise UserWarning(
+                f"Length of array ({self._array_size}) is different from the length of the provided list ({len(values)})"
+            )
+        for provided_value, value in zip(values, self.value):
+            value.set_value(provided_value)
 
 
 class Struct:
@@ -180,9 +213,7 @@ class Struct:
         # check on types of data
         for key, item in data_dict.items():
             if not (isinstance(item, Type) or isinstance(item, Struct)):
-                raise Exception(
-                    f"Data {key} shall be of type Type or Struct. Current type: {type(item)}"
-                )
+                raise Exception(f"Data {key} shall be of type Type or Struct. Current type: {type(item)}")
 
         # if all checks are passed, initialize attributes
         self._data = data_dict
@@ -231,7 +262,10 @@ class Struct:
         values = []
         for _, item in self._data.items():
             val = item.value
-            if type(val) is list:
+            if isinstance(item, c_array):
+                for element in val:
+                    values.append(element.value)
+            elif isinstance(val, list):
                 values += val
             else:
                 values.append(val)
@@ -279,11 +313,9 @@ class Struct:
 
         for key, item in kwargs.items():
             if not key in self._data.keys():
-                raise AttributeError(
-                    f"Data {key} not found! Current data are: {self._data.keys()}"
-                )
+                raise AttributeError(f"Data {key} not found! Current data are: {self._data.keys()}")
             # if the key exists, we can set the value
-            self._data[key].value = item
+            self._data[key].set_value(item)
 
     def unpack(
         self,
@@ -314,20 +346,21 @@ class Struct:
         # set unpack format
         fmt = f"{self.fmt}{B_endianness}"
 
-        unpacked = bstruct.unpack(
-            fmt, byte_string, text_encoding=text_encoding, text_errors=text_errors
-        )
+        unpacked = bstruct.unpack(fmt, byte_string, text_encoding=text_encoding, text_errors=text_errors)
         i = 0
 
         def recursive_set(dict_item, idx: int):
             for _, item in dict_item.items():
                 if isinstance(item, Struct):
                     idx = recursive_set(item._data, idx)
+                elif isinstance(item, c_array):
+                    for element in item:
+                        element.set_value(unpacked[idx])
+                        idx += 1
                 else:
                     item.value = unpacked[idx]
                     idx += 1
             return idx
 
         recursive_set(self._data, i)
-
         return self._data
