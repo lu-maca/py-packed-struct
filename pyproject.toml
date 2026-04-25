@@ -7,7 +7,7 @@ name = "py-packed-struct"
 dynamic = ["version"]
 description = "An implementation of C-like packed structures in Python"
 readme = "README.md"
-requires-python = ">=3.5"
+requires-python = ">=3.6"
 authors = [
     { name = "Luca Macavero", email = "luca.macavero@gmail.com" }
 ]
