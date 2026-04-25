@@ -1,6 +1,7 @@
 """This module wraps the `bitstruct` package to implement a C like packed struct (https://bitstruct.readthedocs.io/en/latest/index.html)"""
 
 import bitstruct as bstruct
+from typing import Union
 
 BYTE_ENDIANNESS = {
     "=": "",
@@ -151,7 +152,7 @@ class c_array(Type):
     def __getitem__(self, idx):
         return self.value[idx]
 
-    def set_value(self, values: list | str):
+    def set_value(self, values: Union[list, str]):
         if isinstance(values, str) and len(values) < len(self.value):
             values += "\0" * (len(self.value) - len(values))
         if len(values) != len(self.value):
@@ -219,13 +220,16 @@ class Struct:
         self._fmt = None
 
     def __getitem__(self, data):
-        return self._data[data]
+        try:
+            return self._data[data].value
+        except KeyError:
+            raise KeyError(f"Data {data} not found in struct")
 
     def __getattr__(self, data):
         try:
-            return self._data[data]
-        except:
-            raise AttributeError
+            return self._data[data].value
+        except KeyError:
+            raise AttributeError(f"Data {data} not found in struct")
 
     def __repr__(self) -> str:
         representation = {}
