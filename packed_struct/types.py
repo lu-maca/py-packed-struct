@@ -219,13 +219,16 @@ class Struct:
         self._fmt = None
 
     def __getitem__(self, data):
-        return self._data[data]
+        try:
+            return self._data[data].value
+        except KeyError:
+            raise KeyError(f"Data {data} not found in struct")
 
     def __getattr__(self, data):
         try:
-            return self._data[data]
-        except:
-            raise AttributeError
+            return self._data[data].value
+        except KeyError:
+            raise AttributeError(f"Data {data} not found in struct")
 
     def __repr__(self) -> str:
         representation = {}

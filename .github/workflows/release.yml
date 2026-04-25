@@ -1,0 +1,102 @@
+name: Release Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    # Skip se il commit contiene [skip ci]
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install semversioner
+      run: pip install semversioner
+    
+    - name: Determine version bump type
+      id: version_type
+      run: |
+        MESSAGE=$(git log -1 --pretty=%s)
+        if [[ "$MESSAGE" =~ ^feat!: ]]; then
+          echo "type=major" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        elif [[ "$MESSAGE" =~ ^feat: ]]; then
+          echo "type=minor" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        elif [[ "$MESSAGE" =~ ^fix: ]]; then
+          echo "type=patch" >> $GITHUB_OUTPUT
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        else
+          echo "should_release=false" >> $GITHUB_OUTPUT
+          echo "Commit message does not follow conventional commits (feat:, feat!:, fix:)"
+        fi
+    
+    - name: Add version change
+      if: steps.version_type.outputs.should_release == 'true'
+      run: |
+        semversioner add-change --type ${{ steps.version_type.outputs.type }} -d "version bump"
+    
+    - name: Get next version
+      if: steps.version_type.outputs.should_release == 'true'
+      id: next_version
+      run: |
+        TAG=$(semversioner next-version)
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Next version will be: ${TAG}"
+    
+    - name: Release version with semversioner
+      if: steps.version_type.outputs.should_release == 'true'
+      run: semversioner release
+    
+    - name: Update __init__.py with new version
+      if: steps.version_type.outputs.should_release == 'true'
+      run: |
+        TAG=${{ steps.next_version.outputs.tag }}
+        sed -i "s/__version__.*/__version__ = \"${TAG}\"/" packed_struct/__init__.py
+        echo "Updated packed_struct/__init__.py with version ${TAG}"
+    
+    - name: Commit and push changes
+      if: steps.version_type.outputs.should_release == 'true'
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add .semversioner packed_struct/__init__.py
+        git commit -m "Release version ${{ steps.next_version.outputs.tag }} [skip ci]"
+        git push origin ${{ github.ref_name }}
+    
+    - name: Create and push tag
+      if: steps.version_type.outputs.should_release == 'true'
+      run: |
+        TAG=${{ steps.next_version.outputs.tag }}
+        git tag -a "${TAG}" -m "Release ${TAG}"
+        git push origin "${TAG}"
+    
+    - name: Create GitHub Release
+      if: steps.version_type.outputs.should_release == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.next_version.outputs.tag }}
+        release_name: Release ${{ steps.next_version.outputs.tag }}
+        body: |
+          Release version ${{ steps.next_version.outputs.tag }}
+          
+          Commit: ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: false
