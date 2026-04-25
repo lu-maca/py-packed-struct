@@ -1,5 +1,6 @@
 """This module wraps the `bitstruct` package to implement a C like packed struct (https://bitstruct.readthedocs.io/en/latest/index.html)"""
 
+import copy
 import bitstruct as bstruct
 from typing import Union
 
@@ -27,11 +28,120 @@ class Type:
     def __repr__(self) -> str:
         return str(self.value)
 
+    def __eq__(self, other):
+        if isinstance(other, Type):
+            return self.value == other.value
+        return self.value == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return id(self)
+
     def set_value(self, value):
         self.value = value
 
 
-class c_unsigned_int(Type):
+class _NumericType(Type):
+    """Intermediate base class for numeric types (integers and floats).
+
+    Adds arithmetic and ordering operations on top of :class:`Type`. Non-numeric
+    subclasses (booleans, chars, raw bytes, padding, arrays) intentionally do
+    *not* inherit from this class so that meaningless operations like
+    ``c_char(...) * 2`` or ``c_bool(...) - 1`` raise a ``TypeError`` instead of
+    silently returning a value.
+    """
+
+    def __add__(self, other):
+        if isinstance(other, Type):
+            return self.value + other.value
+        return self.value + other
+
+    def __sub__(self, other):
+        if isinstance(other, Type):
+            return self.value - other.value
+        return self.value - other
+
+    def __mul__(self, other):
+        if isinstance(other, Type):
+            return self.value * other.value
+        return self.value * other
+
+    def __truediv__(self, other):
+        if isinstance(other, Type):
+            return self.value / other.value
+        return self.value / other
+
+    def __floordiv__(self, other):
+        if isinstance(other, Type):
+            return self.value // other.value
+        return self.value // other
+
+    def __mod__(self, other):
+        if isinstance(other, Type):
+            return self.value % other.value
+        return self.value % other
+
+    def __pow__(self, other):
+        if isinstance(other, Type):
+            return self.value ** other.value
+        return self.value ** other
+
+    def __radd__(self, other):
+        return other + self.value
+
+    def __rsub__(self, other):
+        return other - self.value
+
+    def __rmul__(self, other):
+        return other * self.value
+
+    def __rtruediv__(self, other):
+        return other / self.value
+
+    def __rfloordiv__(self, other):
+        return other // self.value
+
+    def __rmod__(self, other):
+        return other % self.value
+
+    def __rpow__(self, other):
+        return other ** self.value
+
+    def __neg__(self):
+        return -self.value
+
+    def __pos__(self):
+        return +self.value
+
+    def __abs__(self):
+        return abs(self.value)
+
+    def __lt__(self, other):
+        if isinstance(other, Type):
+            return self.value < other.value
+        return self.value < other
+
+    def __le__(self, other):
+        if isinstance(other, Type):
+            return self.value <= other.value
+        return self.value <= other
+
+    def __gt__(self, other):
+        if isinstance(other, Type):
+            return self.value > other.value
+        return self.value > other
+
+    def __ge__(self, other):
+        if isinstance(other, Type):
+            return self.value >= other.value
+        return self.value >= other
+
+    __hash__ = Type.__hash__
+
+
+class c_unsigned_int(_NumericType):
     """`u` stands for unsigned integer, according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
 
     Argument:
@@ -43,7 +153,7 @@ class c_unsigned_int(Type):
         self.fmt: str = f"u{bits}"
 
 
-class c_signed_int(Type):
+class c_signed_int(_NumericType):
     """`s` stands for signed integer, according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
 
     Argument:
@@ -55,7 +165,7 @@ class c_signed_int(Type):
         self.fmt: str = f"s{bits}"
 
 
-class c_float(Type):
+class c_float(_NumericType):
     """`f` stands for float (16, 32, 64 bits), according to bitstruct [doc](https://bitstruct.readthedocs.io/en/latest/index.html#functions)
 
     Argument:
@@ -128,20 +238,28 @@ class c_padding(Type):
 
 
 class c_array(Type):
-    """
-    Type size shall be specified in bits and shall be a multiple of 8
+    """Array of a primitive Type or of a Struct.
+
+    Always pass a *template instance* as the first argument; it is deep-copied
+    for each element.
+
+    Examples::
+
+        c_array(c_unsigned_int(8), 3)   # array of 3 uint8
+        c_array(c_float(32), 4)         # array of 4 float32
+        c_array(Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)}), 2)
     """
 
-    def __init__(self, type_name: Type, type_size_bits: int, array_size: int) -> None:
+    def __init__(self, template: Union["Type", "Struct"], array_size: int) -> None:
         if array_size < 0:
             raise UserWarning("array_size must be positive")
-        if type_size_bits % 8 != 0:
-            raise UserWarning("type_size_bits must be a multiples of 8 bits")
-        super().__init__(type_size_bits * array_size)
+        if not isinstance(template, (Type, Struct)):
+            raise TypeError(f"template must be a Type or Struct instance, got {type(template)}")
+
+        super().__init__(template.size * array_size)
         self._array_size = array_size
-        self.value = []
-        for _ in range(0, array_size):
-            self.value.append(type_name(type_size_bits))
+        self.value = [copy.deepcopy(template) for _ in range(array_size)]
+
         self.fmt = ""
         for value in self.value:
             self.fmt += value.fmt
@@ -160,14 +278,50 @@ class c_array(Type):
                 f"Length of array ({self._array_size}) is different from the length of the provided list ({len(values)})"
             )
         for provided_value, value in zip(values, self.value):
-            value.set_value(provided_value)
+            if isinstance(value, Struct):
+                value.set_data(**provided_value)
+            elif isinstance(value, c_array):
+                value.set_value(provided_value)
+            else:
+                value.set_value(provided_value)
+
+
+def _flatten_values(item) -> list:
+    """Flatten an item (``Type``, ``Struct`` or ``c_array``, possibly nested)
+    into a flat list of scalar values, in the order they should be packed.
+    """
+    if isinstance(item, Struct):
+        return item.value
+    if isinstance(item, c_array):
+        out = []
+        for element in item.value:
+            out += _flatten_values(element)
+        return out
+    return [item.value]
+
+
+def _set_from_unpacked(item, unpacked, idx: int) -> int:
+    """Walk ``item`` (``Type``/``Struct``/``c_array``, possibly nested),
+    consuming scalar values from ``unpacked`` starting at ``idx`` and writing
+    them onto leaves. Return the next index to consume.
+    """
+    if isinstance(item, Struct):
+        for _, child in item._data.items():
+            idx = _set_from_unpacked(child, unpacked, idx)
+        return idx
+    if isinstance(item, c_array):
+        for element in item.value:
+            idx = _set_from_unpacked(element, unpacked, idx)
+        return idx
+    item.value = unpacked[idx]
+    return idx + 1
 
 
 class Struct:
     """Definition of a C-like packed struct
 
     Argument:
-        `data_dict`: dictionary of data to be included in the packed struct (key: name, item: data type)
+        `data_dict` dictionary of data to be included in the packed struct (key: name, item: data type)
 
     Nota bene:
         Data types can only be of type `Type` or of type `Struct`, for nested structures
@@ -226,6 +380,10 @@ class Struct:
             raise KeyError(f"Data {data} not found in struct")
 
     def __getattr__(self, data):
+        # Guard against __getattr__ being called before _data is set (e.g. during
+        # copy.deepcopy reconstruction), which would otherwise cause infinite recursion.
+        if '_data' not in self.__dict__:
+            raise AttributeError(data)
         try:
             return self._data[data].value
         except KeyError:
@@ -259,19 +417,12 @@ class Struct:
 
     @property
     def value(self) -> list:
-        """Return the list of values of all data"""
-        # this can be managed in a more pythonic way maybe with list comprehension,
-        # but a comprehension creates a list of lists when multiple Structs are nested
+        """Return the flat list of values of all data (recursing into nested
+        Structs and arbitrarily-nested c_arrays).
+        """
         values = []
         for _, item in self._data.items():
-            val = item.value
-            if isinstance(item, c_array):
-                for element in val:
-                    values.append(element.value)
-            elif isinstance(val, list):
-                values += val
-            else:
-                values.append(val)
+            values += _flatten_values(item)
         return values
 
     """Public methods"""
@@ -285,7 +436,7 @@ class Struct:
         according to specified format
 
         Argument:
-            `byte_endianness`: shall be "big", "little" or "=" (default: "=", i.e. native)
+            `byte_endianness` shall be "big", "little" or "=" (default: "=", i.e. native)
         """
 
         check_array = [True if x is not None else False for x in self.value]
@@ -333,13 +484,10 @@ class Struct:
         Return a dict containing data.
 
         Arguments:
-            * `byte_string`: the byte string you want to unpack
-
-            * `byte_endianness`: shall be "big", "little" or "=" (default: "=", i.e. native)
-
-            * `text_encoding`: passed to `bytes.decode()`
-
-            * `text_errors`: passed to `bytes.decode()`
+            `byte_string` the byte string you want to unpack
+            `byte_endianness` shall be "big", "little" or "=" (default: "=", i.e. native)
+            `text_encoding` passed to `bytes.decode()`
+            `text_errors` passed to `bytes.decode()`
         """
         if not byte_endianness in BYTE_ENDIANNESS.keys():
             raise Exception("Byte endianness shall be 'little', 'big' or '='")
@@ -354,15 +502,7 @@ class Struct:
 
         def recursive_set(dict_item, idx: int):
             for _, item in dict_item.items():
-                if isinstance(item, Struct):
-                    idx = recursive_set(item._data, idx)
-                elif isinstance(item, c_array):
-                    for element in item:
-                        element.set_value(unpacked[idx])
-                        idx += 1
-                else:
-                    item.value = unpacked[idx]
-                    idx += 1
+                idx = _set_from_unpacked(item, unpacked, idx)
             return idx
 
         recursive_set(self._data, i)
