@@ -18,7 +18,8 @@ A Python library for defining and manipulating C-like packed structures with sup
 - **Bit-Level Precision**: Full support for bit-fields and non-byte-aligned data
 - **Nested Structures**: Create complex hierarchical data structures
 - **Endianness Control**: Support for big-endian, little-endian, and native byte order
-- **Array Support**: Built-in support for fixed-size arrays
+- **Array Support**: Fixed-size arrays of primitives, of structs, and arbitrarily-nested arrays of arrays (multi-dimensional)
+- **Numeric Operators**: Arithmetic and ordering operators are available only on numeric types (`c_unsigned_int`, `c_signed_int`, `c_float`); using them on non-numeric types (`c_bool`, `c_char`, `c_raw_bytes`, `c_padding`, `c_array`) raises `TypeError`
 - **C Compatibility**: Generate structures that are binary-compatible with C's `__attribute__((packed))` structs
 - **Zero Dependencies**: Only requires `bitstruct` package
 
@@ -119,13 +120,28 @@ All data types inherit from the base `Type` class and support bit-level precisio
 
 #### Arrays
 
-- **`c_array(type, type_size_bits, array_size)`**: Fixed-size array
-  - `type_size_bits` must be multiple of 8
+- **`c_array(template, array_size)`**: Fixed-size array.
+  - `template` is a *template instance* of any `Type` or `Struct`; it is deep-copied for each element.
+  - Arrays can be nested (array of arrays) to build multi-dimensional arrays of arbitrary rank.
+
   ```python
   # Array of 5 unsigned 8-bit integers
-  values = c_array(c_unsigned_int, 8, 5)
+  values = c_array(c_unsigned_int(8), 5)
   values.set_value([10, 20, 30, 40, 50])
+
+  # Array of 3 structs
+  point = Struct({"x": c_signed_int(16), "y": c_signed_int(16)})
+  points = c_array(point, 3)
+  points[0].set_data(x=1, y=2)
+
+  # 2-D array (array of arrays of arrays of structs is supported too)
+  matrix = c_array(c_array(c_unsigned_int(8), 4), 3)   # 3x4 matrix
+  matrix.set_value([[1, 2, 3, 4],
+                    [5, 6, 7, 8],
+                    [9, 10, 11, 12]])
   ```
+
+  Indexing returns the wrapped element (a `Type` or `Struct`), so `arr[i].value`, `arr[i].set_data(...)` and `arr[r][c]` all work as expected. The element still compares equal to its scalar value (`arr[i] == 10`).
 
 ### Struct Class
 
@@ -287,7 +303,7 @@ from packed_struct import Struct, c_array, c_unsigned_int
 # Array of integers
 data = Struct({
     "header": c_unsigned_int(16),
-    "values": c_array(c_unsigned_int, 8, 10)  # 10 bytes
+    "values": c_array(c_unsigned_int(8), 10)  # 10 bytes
 })
 
 data.set_data(header=0xFFFF)
@@ -296,6 +312,36 @@ data["values"].set_value([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 # Iterate over array elements
 for i, element in enumerate(data["values"]):
     print(f"values[{i}] = {element.value}")
+```
+
+### Multi-dimensional arrays of nested structs
+
+For a more complex case combining nested structs, arrays inside structs and arrays of arrays of structs, see
+[`examples/complex/warehouse_grid.py`](https://github.com/lu-maca/py-packed-struct/blob/main/examples/complex/warehouse_grid.py).
+
+```python
+from packed_struct import Struct, c_array, c_char, c_unsigned_int
+
+location = Struct({"lat": c_unsigned_int(16), "lon": c_unsigned_int(16)})
+
+bin_tmpl = Struct({
+    "id":      c_unsigned_int(8),
+    "loc":     location,                            # nested struct
+    "label":   c_char(8 * 8),
+    "samples": c_array(c_unsigned_int(16), 4),      # array inside struct
+})
+
+warehouse = Struct({
+    "version": c_unsigned_int(8),
+    "grid":    c_array(c_array(bin_tmpl, 3), 2),    # 2x3 grid of Bin structs
+})
+
+warehouse.set_data(version=1)
+cell = warehouse["grid"][0][1]                       # walk the matrix
+cell.set_data(id=7, label="B0-1", samples=[10, 11, 12, 13])
+cell.get_data()["loc"].set_data(lat=45000, lon=9001)
+
+blob = warehouse.pack()
 ```
 
 ## Use Cases
@@ -313,7 +359,9 @@ for i, element in enumerate(data["values"]):
 | C-like structures | ✅ Supported |
 | Bit-fields | ✅ Supported |
 | Nested structures | ✅ Supported |
-| Arrays | ✅ Supported |
+| Arrays of primitives and structs | ✅ Supported |
+| Multi-dimensional arrays (array of arrays) | ✅ Supported |
+| Arithmetic operators on numeric types only | ✅ Supported |
 | Byte endianness | ✅ Supported (big, little, native) |
 | Bit endianness | 🚧 Planned |
 | Dynamic arrays | 🚧 Planned |

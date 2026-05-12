@@ -332,39 +332,34 @@ class ArrayTest:
 
     @test
     def test_array_correct():
-        type_size = 8
         array_size = 5
-        data = c_array(c_unsigned_int, type_size, array_size)
-        
-        expected_size = type_size * array_size
+        data = c_array(c_unsigned_int(8), array_size)
+
+        expected_size = 8 * array_size
         non_blocking_assert(data.size == expected_size, f"array size not correct, expected {expected_size}, current {data.size}")
         non_blocking_assert(len(data.value) == array_size, f"array length not correct, expected {array_size}, current {len(data.value)}")
 
     @test
     def test_array_format():
-        type_size = 8
-        array_size = 3
-        data = c_array(c_unsigned_int, type_size, array_size)
-        
+        data = c_array(c_unsigned_int(8), 3)
+
         expected_fmt = "u8u8u8"
         non_blocking_assert(data.fmt == expected_fmt, f"array format not correct, expected {expected_fmt}, current {data.fmt}")
 
     @test
     def test_array_set_value():
-        type_size = 8
-        array_size = 3
-        data = c_array(c_unsigned_int, type_size, array_size)
-        
+        data = c_array(c_unsigned_int(8), 3)
+
         values = [1, 2, 3]
         data.set_value(values)
-        
+
         for i, val in enumerate(values):
-            non_blocking_assert(data[i].value == val, f"array[{i}] value not set correctly, expected {val}, current {data[i].value}")
+            non_blocking_assert(data[i] == val, f"array[{i}] value not set correctly, expected {val}, current {data[i]}")
 
     @test
     def test_array_negative_size():
         try:
-            data = c_array(c_unsigned_int, 8, -1)
+            data = c_array(c_unsigned_int(8), -1)
             raise TestException()
         except UserWarning as e:
             expected_msg = "array_size must be positive"
@@ -377,23 +372,8 @@ class ArrayTest:
                 non_blocking_assert(False, "array allows for negative array_size")
 
     @test
-    def test_array_not_multiple_of_8():
-        try:
-            data = c_array(c_unsigned_int, 7, 3)
-            raise TestException()
-        except UserWarning as e:
-            expected_msg = "type_size_bits must be a multiples of 8 bits"
-            non_blocking_assert(
-                str(e) == expected_msg,
-                f"wrong warning (expected: {expected_msg}, current {str(e)})",
-            )
-        except Exception as e:
-            if isinstance(e, TestException):
-                non_blocking_assert(False, "array allows for type_size_bits not multiple of 8")
-
-    @test
     def test_array_wrong_value_length():
-        data = c_array(c_unsigned_int, 8, 3)
+        data = c_array(c_unsigned_int(8), 3)
         try:
             data.set_value([1, 2])  # Too few values
             raise TestException()
@@ -408,11 +388,107 @@ class ArrayTest:
 
     @test
     def test_array_iteration():
-        data = c_array(c_unsigned_int, 8, 3)
+        data = c_array(c_unsigned_int(8), 3)
         count = 0
         for item in data:
             count += 1
         non_blocking_assert(count == 3, f"array iteration failed, expected 3 items, got {count}")
+
+
+class ArrayOfStructTest:
+
+    @test
+    def test_array_of_struct_creation():
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 3)
+
+        expected_size = point.size * 3  # 48 bits
+        non_blocking_assert(arr.size == expected_size, f"array-of-struct size not correct, expected {expected_size}, current {arr.size}")
+        non_blocking_assert(len(arr.value) == 3, f"array-of-struct length not correct, expected 3, current {len(arr.value)}")
+
+    @test
+    def test_array_of_struct_format():
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 2)
+
+        expected_fmt = "u8u8u8u8"
+        non_blocking_assert(arr.fmt == expected_fmt, f"array-of-struct format not correct, expected {expected_fmt}, current {arr.fmt}")
+
+    @test
+    def test_array_of_struct_elements_are_independent():
+        """Deep copies must be independent; modifying one must not affect others."""
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 2)
+
+        arr[0].set_data(x=1, y=2)
+        arr[1].set_data(x=3, y=4)
+
+        non_blocking_assert(arr[0]["x"] == 1, f"arr[0].x expected 1, got {arr[0]['x']}")
+        non_blocking_assert(arr[0]["y"] == 2, f"arr[0].y expected 2, got {arr[0]['y']}")
+        non_blocking_assert(arr[1]["x"] == 3, f"arr[1].x expected 3, got {arr[1]['x']}")
+        non_blocking_assert(arr[1]["y"] == 4, f"arr[1].y expected 4, got {arr[1]['y']}")
+
+    @test
+    def test_array_of_struct_set_value():
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 3)
+
+        arr.set_value([{"x": 10, "y": 20}, {"x": 30, "y": 40}, {"x": 50, "y": 60}])
+
+        non_blocking_assert(arr[0]["x"] == 10, f"arr[0].x expected 10, got {arr[0]['x']}")
+        non_blocking_assert(arr[1]["y"] == 40, f"arr[1].y expected 40, got {arr[1]['y']}")
+        non_blocking_assert(arr[2]["x"] == 50, f"arr[2].x expected 50, got {arr[2]['x']}")
+
+    @test
+    def test_array_of_struct_wrong_length():
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 3)
+        try:
+            arr.set_value([{"x": 1, "y": 2}])  # too few
+            raise TestException()
+        except UserWarning as e:
+            non_blocking_assert(
+                "Length of array" in str(e),
+                f"wrong warning for incorrect value length: {str(e)}",
+            )
+        except Exception as e:
+            if isinstance(e, TestException):
+                non_blocking_assert(False, "array-of-struct set_value allows for incorrect length")
+
+    @test
+    def test_struct_with_array_of_struct_pack_unpack():
+        """A Struct containing a c_array of Structs can be packed and unpacked."""
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        outer = Struct({"points": c_array(point, 2), "count": c_unsigned_int(8)})
+
+        outer["points"][0].set_data(x=7, y=14)
+        outer["points"][1].set_data(x=21, y=28)
+        outer.set_data(count=2)
+
+        packed = outer.pack()
+        non_blocking_assert(isinstance(packed, bytes), f"pack should return bytes, got {type(packed)}")
+        non_blocking_assert(len(packed) == (8 + 8 + 8 + 8 + 8) // 8, f"packed length unexpected: {len(packed)}")
+
+        # Rebuild an identical empty struct and unpack into it
+        point2 = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        outer2 = Struct({"points": c_array(point2, 2), "count": c_unsigned_int(8)})
+        outer2.unpack(packed)
+
+        non_blocking_assert(outer2["points"][0]["x"] == 7,  f"unpack x[0] expected 7, got {outer2['points'][0]['x']}")
+        non_blocking_assert(outer2["points"][0]["y"] == 14, f"unpack y[0] expected 14, got {outer2['points'][0]['y']}")
+        non_blocking_assert(outer2["points"][1]["x"] == 21, f"unpack x[1] expected 21, got {outer2['points'][1]['x']}")
+        non_blocking_assert(outer2["points"][1]["y"] == 28, f"unpack y[1] expected 28, got {outer2['points'][1]['y']}")
+        non_blocking_assert(outer2["count"] == 2, f"unpack count expected 2, got {outer2['count']}")
+
+    @test
+    def test_array_of_struct_iteration():
+        point = Struct({"x": c_unsigned_int(8), "y": c_unsigned_int(8)})
+        arr = c_array(point, 4)
+        count = 0
+        for element in arr:
+            non_blocking_assert(isinstance(element, Struct), f"element should be a Struct, got {type(element)}")
+            count += 1
+        non_blocking_assert(count == 4, f"expected 4 elements, got {count}")
 
 
 class StructTest:
