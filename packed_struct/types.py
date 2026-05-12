@@ -221,6 +221,8 @@ class Struct:
 
     def __getitem__(self, data):
         try:
+            if isinstance(self._data[data], Struct):
+                return self._data[data]
             return self._data[data].value
         except KeyError:
             raise KeyError(f"Data {data} not found in struct")
